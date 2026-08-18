@@ -17,17 +17,17 @@ import config
 router = Router()
 
 # ==================================================
-# KEYBOARDS & TEXT TEMPLATES
+# KEYBOARDS & TEXT TEMPLATES (WITH CUSTOM TG-EMOJIS)
 # ==================================================
 
 START_TEXT = (
     "━━━━━━━━━━━━━━━━━━\n"
-    "🤖 <b>TRION AI</b>\n"
+    '<tg-emoji emoji-id="5251299553239398548">🤖</tg-emoji> <tg-emoji emoji-id="6294260862752399683">❗️</tg-emoji><tg-emoji emoji-id="6294105861677656703">❗️</tg-emoji><tg-emoji emoji-id="6293801438690680384">❗️</tg-emoji><tg-emoji emoji-id="6291782786881691498">❗️</tg-emoji><tg-emoji emoji-id="6293832444059596387">❗️</tg-emoji><tg-emoji emoji-id="6291874531678101338">❗️</tg-emoji><tg-emoji emoji-id="6294269697500127103">❗️</tg-emoji><tg-emoji emoji-id="6294060871895228563">❗️</tg-emoji> <tg-emoji emoji-id="6053062818033309122">❗️</tg-emoji>\n'
     "━━━━━━━━━━━━━━━━━━\n\n"
-    "👋 Welcome to <b>TRION AI</b>!\n\n"
-    "Your simple guide for accessing and using TRION AI.\n\n"
-    "Choose an option below to get started.\n\n"
-    "⚡ Fast • Simple • Easy\n"
+    '<tg-emoji emoji-id="4963072209334567688">👋</tg-emoji> Welcome to TRION AI! <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>\n\n'
+    '<tg-emoji emoji-id="6053128350644311646">▶️</tg-emoji> Your simple guide for accessing and using TRION AI. <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>\n\n'
+    '<tg-emoji emoji-id="6339306810465327721">🆕</tg-emoji> Choose an option below to get started.\n\n'
+    '<tg-emoji emoji-id="5253761703371375423">⚡️</tg-emoji> Fast • Simple • Easy <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>\n'
     "━━━━━━━━━━━━━━━━━━"
 )
 
@@ -88,12 +88,7 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
 # ==================================================
 
 async def send_direct_guide(bot: Bot, chat_id: int, message_id: int):
-    """
-    Directly copies or forwards the exact Telegram post/video with its original caption.
-    No extra promotional/fallback text.
-    """
     try:
-        # Direct Copy (video + original caption + back button attached)
         await bot.copy_message(
             chat_id=chat_id,
             from_chat_id=config.GUIDE_CHAT_ID,
@@ -101,15 +96,13 @@ async def send_direct_guide(bot: Bot, chat_id: int, message_id: int):
             reply_markup=get_back_keyboard()
         )
     except TelegramAPIError as e:
-        config.logger.info(f"copy_message attempt: {e}. Trying direct forward...")
+        config.logger.info(f"copy_message failed: {e}. Attempting direct forward...")
         try:
-            # Direct Forward of original post
             await bot.forward_message(
                 chat_id=chat_id,
                 from_chat_id=config.GUIDE_CHAT_ID,
                 message_id=message_id
             )
-            # Send back button below the forwarded post
             await bot.send_message(
                 chat_id=chat_id,
                 text="━━━━━━━━━━━━━━━━━━",
@@ -127,6 +120,7 @@ async def send_direct_guide(bot: Bot, chat_id: int, message_id: int):
 async def cmd_start(message: Message):
     await message.answer(
         text=START_TEXT,
+        parse_mode=ParseMode.HTML,
         reply_markup=get_main_menu_keyboard()
     )
 
@@ -135,6 +129,7 @@ async def cmd_start(message: Message):
 async def cmd_help(message: Message):
     await message.answer(
         text=HELP_TEXT,
+        parse_mode=ParseMode.HTML,
         reply_markup=get_main_menu_keyboard()
     )
 
@@ -143,6 +138,7 @@ async def cmd_help(message: Message):
 async def cmd_support(message: Message):
     await message.answer(
         text=SUPPORT_TEXT,
+        parse_mode=ParseMode.HTML,
         reply_markup=get_support_keyboard()
     )
 
@@ -187,11 +183,13 @@ async def cb_support(callback: CallbackQuery):
     try:
         await callback.message.edit_text(
             text=SUPPORT_TEXT,
+            parse_mode=ParseMode.HTML,
             reply_markup=get_support_keyboard()
         )
     except TelegramAPIError:
         await callback.message.answer(
             text=SUPPORT_TEXT,
+            parse_mode=ParseMode.HTML,
             reply_markup=get_support_keyboard()
         )
 
@@ -202,11 +200,13 @@ async def cb_back_menu(callback: CallbackQuery):
     try:
         await callback.message.edit_text(
             text=START_TEXT,
+            parse_mode=ParseMode.HTML,
             reply_markup=get_main_menu_keyboard()
         )
     except TelegramAPIError:
         await callback.message.answer(
             text=START_TEXT,
+            parse_mode=ParseMode.HTML,
             reply_markup=get_main_menu_keyboard()
         )
 
@@ -224,7 +224,6 @@ async def main():
     dp = Dispatcher()
     dp.include_router(router)
 
-    # Set Telegram commands
     commands = [
         BotCommand(command="start", description="Open main menu"),
         BotCommand(command="help", description="Show simple help"),
@@ -232,11 +231,9 @@ async def main():
     ]
     await bot.set_my_commands(commands)
 
-    # Bot verification
     me = await bot.get_me()
     config.logger.info(f"✅ Bot connected: @{me.username}")
 
-    # Drop pending updates
     await bot.delete_webhook(drop_pending_updates=True)
     config.logger.info("🚀 Polling started...")
 
