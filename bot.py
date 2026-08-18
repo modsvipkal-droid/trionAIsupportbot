@@ -1,6 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart, Command
 from aiogram.client.default import DefaultBotProperties
 from aiogram.types import (
     Message,
@@ -13,7 +14,6 @@ from aiogram.exceptions import TelegramAPIError
 
 import config
 
-# Initialize Router
 router = Router()
 
 # ==================================================
@@ -107,13 +107,7 @@ async def send_or_fallback_guide(
     fallback_button_text: str,
     guide_name: str
 ):
-    """
-    Attempts to copy the post directly from the channel into the chat.
-    If the bot cannot copy the message (permissions/forwarding restricted),
-    it provides a fallback direct link button.
-    """
     try:
-        # Try copying the message directly
         await bot.copy_message(
             chat_id=chat_id,
             from_chat_id=config.GUIDE_CHAT_ID,
@@ -121,10 +115,7 @@ async def send_or_fallback_guide(
             reply_markup=get_back_keyboard()
         )
     except TelegramAPIError as e:
-        config.logger.warning(
-            f"Could not copy post {message_id} from {config.GUIDE_CHAT_ID}: {e}. Using fallback URL."
-        )
-        # Fallback message with direct Telegram post link
+        config.logger.warning(f"Copy failed for post {message_id}: {e}. Sending fallback.")
         await bot.send_message(
             chat_id=chat_id,
             text=f"📖 <b>TRION AI: {guide_name}</b>\n\nClick the button below to view the official guide:",
@@ -133,10 +124,10 @@ async def send_or_fallback_guide(
 
 
 # ==================================================
-# COMMAND HANDLERS
+# COMMAND HANDLERS (Using Official aiogram 3.x Filters)
 # ==================================================
 
-@router.message(F.text == "/start")
+@router.message(CommandStart())
 async def cmd_start(message: Message):
     await message.answer(
         text=START_TEXT,
@@ -144,7 +135,7 @@ async def cmd_start(message: Message):
     )
 
 
-@router.message(F.text == "/help")
+@router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
         text=HELP_TEXT,
@@ -152,7 +143,7 @@ async def cmd_help(message: Message):
     )
 
 
-@router.message(F.text == "/support")
+@router.message(Command("support"))
 async def cmd_support(message: Message):
     await message.answer(
         text=SUPPORT_TEXT,
@@ -235,19 +226,15 @@ async def cb_back_menu(callback: CallbackQuery):
 # ==================================================
 
 async def main():
-    # 1. Initialize Bot instance
     bot = Bot(
         token=config.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
 
-    # 2. Initialize Dispatcher
     dp = Dispatcher()
-
-    # 3. Register Router
     dp.include_router(router)
 
-    # 4. Set bot menu commands
+    # Set commands
     commands = [
         BotCommand(command="start", description="Open main menu"),
         BotCommand(command="help", description="Show simple help"),
@@ -255,14 +242,14 @@ async def main():
     ]
     await bot.set_my_commands(commands)
 
-    # 5. Global Error Logging
-    @dp.errors()
-    async def global_error_handler(event, exception):
-        config.logger.error(f"Global error intercepted: {exception}")
-        return True
+    # Verify bot token & connection
+    me = await bot.get_me()
+    config.logger.info(f"✅ Bot successfully connected as: @{me.username} (ID: {me.id})")
 
-    # 6. Start polling
-    config.logger.info("TRION AI Guide Bot is starting polling...")
+    # Drop old pending updates to start fresh
+    await bot.delete_webhook(drop_pending_updates=True)
+    config.logger.info("🚀 Polling started... Send /start to your bot in Telegram!")
+
     try:
         await dp.start_polling(bot)
     finally:
