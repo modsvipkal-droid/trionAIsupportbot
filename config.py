@@ -1,10 +1,14 @@
 import os
 import sys
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Android/Termux me correct path se .env load karne ke liye
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=ENV_PATH)
 
 # Logger setup
 logging.basicConfig(
@@ -16,7 +20,7 @@ logger = logging.getLogger("TRION_AI_BOT")
 # Bot token validation
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
-    logger.critical("BOT_TOKEN is missing! Please set it in your .env file.")
+    logger.critical("❌ BOT_TOKEN nahi mila! .env file check karein.")
     sys.exit(1)
 
 # Support URL formatting
