@@ -1,91 +1,53 @@
-from __future__ import annotations
-
 import asyncio
-import logging
-from dataclasses import dataclass
-
-from aiogram import Bot, Dispatcher, F, Router
-from aiogram.exceptions import TelegramAPIError
-from aiogram.filters import Command, CommandStart
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from aiogram.types import (
-    BotCommand,
-    CallbackQuery,
-    ErrorEvent,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
     Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    BotCommand
 )
+from aiogram.exceptions import TelegramAPIError
 
-from config import Config, load_config
+import config
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
-logger = logging.getLogger(__name__)
-
+# Initialize Router
 router = Router()
-config: Config = load_config()
 
+# ==================================================
+# KEYBOARDS & TEXT TEMPLATES
+# ==================================================
 
-START_TEXT = """━━━━━━━━━━━━━━━━━━
-🤖 TRION AI
-━━━━━━━━━━━━━━━━━━
+START_TEXT = (
+    "━━━━━━━━━━━━━━━━━━\n"
+    "🤖 <b>TRION AI</b>\n"
+    "━━━━━━━━━━━━━━━━━━\n\n"
+    "👋 Welcome to <b>TRION AI</b>!\n\n"
+    "Your simple guide for accessing and using TRION AI.\n\n"
+    "Choose an option below to get started.\n\n"
+    "⚡ Fast • Simple • Easy\n"
+    "━━━━━━━━━━━━━━━━━━"
+)
 
-👋 Welcome to TRION AI!
+HELP_TEXT = (
+    "🤖 <b>TRION AI GUIDE BOT</b>\n\n"
+    "Use the buttons below to access:\n\n"
+    "🔐 Login Guide\n"
+    "💳 Purchase Guide\n"
+    "🎮 Gameplay Guide\n"
+    "🆘 Support"
+)
 
-Your simple guide for accessing and using TRION AI.
+SUPPORT_TEXT = (
+    "🆘 <b>TRION AI SUPPORT</b>\n\n"
+    "Need help?\n\n"
+    "For login, purchase or technical assistance,\n"
+    "contact our support team."
+)
 
-Choose an option below to get started.
-
-⚡ Fast • Simple • Easy
-━━━━━━━━━━━━━━━━━━"""
-
-HELP_TEXT = """🤖 TRION AI GUIDE BOT
-
-Use the buttons below to access:
-
-🔐 Login Guide
-💳 Purchase Guide
-🎮 Gameplay Guide
-🆘 Support"""
-
-SUPPORT_TEXT = """🆘 TRION AI SUPPORT
-
-Need help?
-
-For login, purchase or technical assistance,
-contact our support team."""
-
-
-@dataclass(frozen=True)
-class GuidePost:
-    title: str
-    message_id: int
-    url_button_text: str
-
-
-GUIDES = {
-    "menu_login": GuidePost(
-        title="Login guide",
-        message_id=config.login_message_id,
-        url_button_text="🎥 Open Login Guide",
-    ),
-    "menu_buy": GuidePost(
-        title="Buy guide",
-        message_id=config.buy_message_id,
-        url_button_text="💳 Open Buy Guide",
-    ),
-    "menu_play": GuidePost(
-        title="Play guide",
-        message_id=config.play_message_id,
-        url_button_text="🎮 Open Play Guide",
-    ),
-}
-
-
-def main_menu_keyboard() -> InlineKeyboardMarkup:
+def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -95,187 +57,220 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="🎮 How to Play", callback_data="menu_play"),
                 InlineKeyboardButton(text="🆘 Support", callback_data="menu_support"),
+            ]
+        ]
+    )
+
+def get_support_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👨‍💻 Contact Support", url=config.SUPPORT_URL)
             ],
+            [
+                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")
+            ]
         ]
     )
 
-
-def back_menu_keyboard() -> InlineKeyboardMarkup:
+def get_back_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")]
+            [
+                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")
+            ]
         ]
     )
 
-
-def support_keyboard() -> InlineKeyboardMarkup:
+def get_fallback_guide_keyboard(button_text: str, message_id: int) -> InlineKeyboardMarkup:
+    direct_post_url = f"https://t.me/{config.CLEAN_CHANNEL_NAME}/{message_id}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="👨‍💻 Contact Support", url=config.support_url)],
-            [InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")],
+            [
+                InlineKeyboardButton(text=button_text, url=direct_post_url)
+            ],
+            [
+                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")
+            ]
         ]
     )
 
 
-def guide_fallback_keyboard(guide: GuidePost) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=guide.url_button_text, url=guide_post_url(guide))],
-            [InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")],
-        ]
-    )
+# ==================================================
+# HELPER FUNCTIONS
+# ==================================================
 
-
-def guide_post_url(guide: GuidePost) -> str:
-    chat_id = config.guide_chat_id.strip()
-
-    if chat_id.startswith("@"):
-        return f"https://t.me/{chat_id[1:]}/{guide.message_id}"
-
-    if chat_id.startswith("https://t.me/"):
-        return f"{chat_id.rstrip('/')}/{guide.message_id}"
-
-    if chat_id.startswith("t.me/"):
-        return f"https://{chat_id.rstrip('/')}/{guide.message_id}"
-
-    if chat_id.startswith("-100") and chat_id[4:].isdigit():
-        return f"https://t.me/c/{chat_id[4:]}/{guide.message_id}"
-
-    return f"https://t.me/postkalmoda/{guide.message_id}"
-
-
-async def set_bot_commands(bot: Bot) -> None:
-    await bot.set_my_commands(
-        [
-            BotCommand(command="start", description="Open main menu"),
-            BotCommand(command="help", description="Show simple help"),
-            BotCommand(command="support", description="Open support"),
-        ]
-    )
-
-
-async def send_main_menu(message: Message) -> None:
-    await message.answer(START_TEXT, reply_markup=main_menu_keyboard())
-
-
-@router.message(CommandStart())
-async def start_handler(message: Message) -> None:
-    await send_main_menu(message)
-
-
-@router.message(Command("help"))
-async def help_handler(message: Message) -> None:
-    await message.answer(HELP_TEXT, reply_markup=main_menu_keyboard())
-
-
-@router.message(Command("support"))
-async def support_command_handler(message: Message) -> None:
-    await message.answer(SUPPORT_TEXT, reply_markup=support_keyboard())
-
-
-@router.callback_query(F.data.in_(GUIDES.keys()))
-async def guide_callback_handler(callback: CallbackQuery) -> None:
-    await callback.answer()
-
-    guide = GUIDES[callback.data]
+async def send_or_fallback_guide(
+    bot: Bot,
+    chat_id: int,
+    message_id: int,
+    fallback_button_text: str,
+    guide_name: str
+):
+    """
+    Attempts to copy the post directly from the channel into the chat.
+    If the bot cannot copy the message (permissions/forwarding restricted),
+    it provides a fallback direct link button.
+    """
     try:
-        await callback.bot.copy_message(
-            chat_id=callback.from_user.id,
-            from_chat_id=config.guide_chat_id,
-            message_id=guide.message_id,
-            reply_markup=back_menu_keyboard(),
+        # Try copying the message directly
+        await bot.copy_message(
+            chat_id=chat_id,
+            from_chat_id=config.GUIDE_CHAT_ID,
+            message_id=message_id,
+            reply_markup=get_back_keyboard()
         )
-    except TelegramAPIError as error:
-        logger.warning(
-            "Could not copy %s message %s from %s: %s",
-            guide.title,
-            guide.message_id,
-            config.guide_chat_id,
-            error,
+    except TelegramAPIError as e:
+        config.logger.warning(
+            f"Could not copy post {message_id} from {config.GUIDE_CHAT_ID}: {e}. Using fallback URL."
         )
-        await send_guide_fallback(callback, guide)
+        # Fallback message with direct Telegram post link
+        await bot.send_message(
+            chat_id=chat_id,
+            text=f"📖 <b>TRION AI: {guide_name}</b>\n\nClick the button below to view the official guide:",
+            reply_markup=get_fallback_guide_keyboard(fallback_button_text, message_id)
+        )
 
 
-async def send_guide_fallback(callback: CallbackQuery, guide: GuidePost) -> None:
-    text = f"{guide.title.title()} is available below."
+# ==================================================
+# COMMAND HANDLERS
+# ==================================================
 
-    if callback.message:
-        try:
-            await callback.message.edit_text(
-                text,
-                reply_markup=guide_fallback_keyboard(guide),
-            )
-            return
-        except TelegramAPIError as error:
-            logger.warning("Could not edit guide fallback message: %s", error)
+@router.message(F.text == "/start")
+async def cmd_start(message: Message):
+    await message.answer(
+        text=START_TEXT,
+        reply_markup=get_main_menu_keyboard()
+    )
 
-    await callback.bot.send_message(
-        chat_id=callback.from_user.id,
-        text=text,
-        reply_markup=guide_fallback_keyboard(guide),
+
+@router.message(F.text == "/help")
+async def cmd_help(message: Message):
+    await message.answer(
+        text=HELP_TEXT,
+        reply_markup=get_main_menu_keyboard()
+    )
+
+
+@router.message(F.text == "/support")
+async def cmd_support(message: Message):
+    await message.answer(
+        text=SUPPORT_TEXT,
+        reply_markup=get_support_keyboard()
+    )
+
+
+# ==================================================
+# CALLBACK HANDLERS
+# ==================================================
+
+@router.callback_query(F.data == "menu_login")
+async def cb_login(callback: CallbackQuery, bot: Bot):
+    await callback.answer()
+    await send_or_fallback_guide(
+        bot=bot,
+        chat_id=callback.message.chat.id,
+        message_id=config.LOGIN_MESSAGE_ID,
+        fallback_button_text="🎥 Open Login Guide",
+        guide_name="How to Login"
+    )
+
+
+@router.callback_query(F.data == "menu_buy")
+async def cb_buy(callback: CallbackQuery, bot: Bot):
+    await callback.answer()
+    await send_or_fallback_guide(
+        bot=bot,
+        chat_id=callback.message.chat.id,
+        message_id=config.BUY_MESSAGE_ID,
+        fallback_button_text="💳 Open Buy Guide",
+        guide_name="How to Buy"
+    )
+
+
+@router.callback_query(F.data == "menu_play")
+async def cb_play(callback: CallbackQuery, bot: Bot):
+    await callback.answer()
+    await send_or_fallback_guide(
+        bot=bot,
+        chat_id=callback.message.chat.id,
+        message_id=config.PLAY_MESSAGE_ID,
+        fallback_button_text="🎮 Open Play Guide",
+        guide_name="How to Play"
     )
 
 
 @router.callback_query(F.data == "menu_support")
-async def support_callback_handler(callback: CallbackQuery) -> None:
+async def cb_support(callback: CallbackQuery):
     await callback.answer()
-
-    if callback.message:
-        try:
-            await callback.message.edit_text(SUPPORT_TEXT, reply_markup=support_keyboard())
-            return
-        except TelegramAPIError as error:
-            logger.warning("Could not edit support message: %s", error)
-
-    await callback.bot.send_message(
-        chat_id=callback.from_user.id,
-        text=SUPPORT_TEXT,
-        reply_markup=support_keyboard(),
-    )
+    try:
+        await callback.message.edit_text(
+            text=SUPPORT_TEXT,
+            reply_markup=get_support_keyboard()
+        )
+    except TelegramAPIError:
+        await callback.message.answer(
+            text=SUPPORT_TEXT,
+            reply_markup=get_support_keyboard()
+        )
 
 
 @router.callback_query(F.data == "back_menu")
-async def back_menu_callback_handler(callback: CallbackQuery) -> None:
+async def cb_back_menu(callback: CallbackQuery):
     await callback.answer()
+    try:
+        await callback.message.edit_text(
+            text=START_TEXT,
+            reply_markup=get_main_menu_keyboard()
+        )
+    except TelegramAPIError:
+        await callback.message.answer(
+            text=START_TEXT,
+            reply_markup=get_main_menu_keyboard()
+        )
 
-    if callback.message:
-        try:
-            await callback.message.edit_text(START_TEXT, reply_markup=main_menu_keyboard())
-            return
-        except TelegramAPIError as error:
-            logger.warning("Could not edit back menu message: %s", error)
 
-    await callback.bot.send_message(
-        chat_id=callback.from_user.id,
-        text=START_TEXT,
-        reply_markup=main_menu_keyboard(),
+# ==================================================
+# BOT STARTUP
+# ==================================================
+
+async def main():
+    # 1. Initialize Bot instance
+    bot = Bot(
+        token=config.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
 
+    # 2. Initialize Dispatcher
+    dp = Dispatcher()
 
-@router.callback_query()
-async def unknown_callback_handler(callback: CallbackQuery) -> None:
-    await callback.answer("This option is no longer available.", show_alert=False)
+    # 3. Register Router
+    dp.include_router(router)
 
+    # 4. Set bot menu commands
+    commands = [
+        BotCommand(command="start", description="Open main menu"),
+        BotCommand(command="help", description="Show simple help"),
+        BotCommand(command="support", description="Open support")
+    ]
+    await bot.set_my_commands(commands)
 
-@router.errors()
-async def global_error_handler(event: ErrorEvent) -> bool:
-    logger.exception("Unhandled update error", exc_info=event.exception)
-    return True
+    # 5. Global Error Logging
+    @dp.errors()
+    async def global_error_handler(event, exception):
+        config.logger.error(f"Global error intercepted: {exception}")
+        return True
 
-
-async def main() -> None:
-    bot = Bot(token=config.bot_token)
-    dispatcher = Dispatcher()
-    dispatcher.include_router(router)
-
-    await set_bot_commands(bot)
-    logger.info("TRION AI Guide Bot is starting polling")
-
+    # 6. Start polling
+    config.logger.info("TRION AI Guide Bot is starting polling...")
     try:
-        await dispatcher.start_polling(bot)
+        await dp.start_polling(bot)
     finally:
         await bot.session.close()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        config.logger.info("TRION AI Guide Bot stopped.")
