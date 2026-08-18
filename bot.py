@@ -16,8 +16,11 @@ import config
 
 router = Router()
 
+# Premium Custom Emoji ID (Jo button ke text se pehle aayega)
+BUTTON_EMOJI_ID = "6053229479944264545"
+
 # ==================================================
-# KEYBOARDS & TEXT TEMPLATES (CUSTOM TG-EMOJIS)
+# TEXT TEMPLATES (CUSTOM TELEGRAM EMOJIS)
 # ==================================================
 
 START_TEXT = (
@@ -48,19 +51,39 @@ SUPPORT_TEXT = (
 )
 
 # ==================================================
-# KEYBOARDS WITH STYLE = "success" (GREEN)
+# INLINE KEYBOARDS ([EMOJI] + [BUTTON NAME])
 # ==================================================
 
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🔐 How to Login", callback_data="menu_login", style="success"),
-                InlineKeyboardButton(text="💳 How to Buy", callback_data="menu_buy", style="success"),
+                InlineKeyboardButton(
+                    text="How to Login",
+                    callback_data="menu_login",
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                ),
+                InlineKeyboardButton(
+                    text="How to Buy",
+                    callback_data="menu_buy",
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                ),
             ],
             [
-                InlineKeyboardButton(text="🎮 How to Play", callback_data="menu_play", style="success"),
-                InlineKeyboardButton(text="🆘 Support", callback_data="menu_support", style="success"),
+                InlineKeyboardButton(
+                    text="How to Play",
+                    callback_data="menu_play",
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                ),
+                InlineKeyboardButton(
+                    text="Support",
+                    callback_data="menu_support",
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                ),
             ]
         ]
     )
@@ -69,10 +92,20 @@ def get_support_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="👨‍💻 Contact Support", url=config.SUPPORT_URL, style="success")
+                InlineKeyboardButton(
+                    text="Contact Support",
+                    url=config.SUPPORT_URL,
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                )
             ],
             [
-                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu", style="success")
+                InlineKeyboardButton(
+                    text="Back to Menu",
+                    callback_data="back_menu",
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                )
             ]
         ]
     )
@@ -81,7 +114,12 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu", style="success")
+                InlineKeyboardButton(
+                    text="Back to Menu",
+                    callback_data="back_menu",
+                    icon_custom_emoji_id=BUTTON_EMOJI_ID,
+                    style="success"
+                )
             ]
         ]
     )
