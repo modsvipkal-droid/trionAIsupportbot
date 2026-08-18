@@ -82,32 +82,18 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
         ]
     )
 
-def get_fallback_guide_keyboard(button_text: str, message_id: int) -> InlineKeyboardMarkup:
-    direct_post_url = f"https://t.me/{config.CLEAN_CHANNEL_NAME}/{message_id}"
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=button_text, url=direct_post_url)
-            ],
-            [
-                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")
-            ]
-        ]
-    )
-
 
 # ==================================================
-# HELPER FUNCTIONS
+# DIRECT VIDEO / POST SENDER FUNCTION
 # ==================================================
 
-async def send_or_fallback_guide(
-    bot: Bot,
-    chat_id: int,
-    message_id: int,
-    fallback_button_text: str,
-    guide_name: str
-):
+async def send_direct_guide(bot: Bot, chat_id: int, message_id: int):
+    """
+    Directly copies or forwards the exact Telegram post/video with its original caption.
+    No extra promotional/fallback text.
+    """
     try:
+        # Direct Copy (video + original caption + back button attached)
         await bot.copy_message(
             chat_id=chat_id,
             from_chat_id=config.GUIDE_CHAT_ID,
@@ -115,16 +101,26 @@ async def send_or_fallback_guide(
             reply_markup=get_back_keyboard()
         )
     except TelegramAPIError as e:
-        config.logger.warning(f"Copy failed for post {message_id}: {e}. Sending fallback.")
-        await bot.send_message(
-            chat_id=chat_id,
-            text=f"📖 <b>TRION AI: {guide_name}</b>\n\nClick the button below to view the official guide:",
-            reply_markup=get_fallback_guide_keyboard(fallback_button_text, message_id)
-        )
+        config.logger.info(f"copy_message attempt: {e}. Trying direct forward...")
+        try:
+            # Direct Forward of original post
+            await bot.forward_message(
+                chat_id=chat_id,
+                from_chat_id=config.GUIDE_CHAT_ID,
+                message_id=message_id
+            )
+            # Send back button below the forwarded post
+            await bot.send_message(
+                chat_id=chat_id,
+                text="━━━━━━━━━━━━━━━━━━",
+                reply_markup=get_back_keyboard()
+            )
+        except TelegramAPIError as err:
+            config.logger.error(f"Failed to forward message {message_id}: {err}")
 
 
 # ==================================================
-# COMMAND HANDLERS (Using Official aiogram 3.x Filters)
+# COMMAND HANDLERS
 # ==================================================
 
 @router.message(CommandStart())
@@ -152,42 +148,36 @@ async def cmd_support(message: Message):
 
 
 # ==================================================
-# CALLBACK HANDLERS
+# CALLBACK QUERY HANDLERS
 # ==================================================
 
 @router.callback_query(F.data == "menu_login")
 async def cb_login(callback: CallbackQuery, bot: Bot):
     await callback.answer()
-    await send_or_fallback_guide(
+    await send_direct_guide(
         bot=bot,
         chat_id=callback.message.chat.id,
-        message_id=config.LOGIN_MESSAGE_ID,
-        fallback_button_text="🎥 Open Login Guide",
-        guide_name="How to Login"
+        message_id=config.LOGIN_MESSAGE_ID
     )
 
 
 @router.callback_query(F.data == "menu_buy")
 async def cb_buy(callback: CallbackQuery, bot: Bot):
     await callback.answer()
-    await send_or_fallback_guide(
+    await send_direct_guide(
         bot=bot,
         chat_id=callback.message.chat.id,
-        message_id=config.BUY_MESSAGE_ID,
-        fallback_button_text="💳 Open Buy Guide",
-        guide_name="How to Buy"
+        message_id=config.BUY_MESSAGE_ID
     )
 
 
 @router.callback_query(F.data == "menu_play")
 async def cb_play(callback: CallbackQuery, bot: Bot):
     await callback.answer()
-    await send_or_fallback_guide(
+    await send_direct_guide(
         bot=bot,
         chat_id=callback.message.chat.id,
-        message_id=config.PLAY_MESSAGE_ID,
-        fallback_button_text="🎮 Open Play Guide",
-        guide_name="How to Play"
+        message_id=config.PLAY_MESSAGE_ID
     )
 
 
@@ -234,7 +224,7 @@ async def main():
     dp = Dispatcher()
     dp.include_router(router)
 
-    # Set commands
+    # Set Telegram commands
     commands = [
         BotCommand(command="start", description="Open main menu"),
         BotCommand(command="help", description="Show simple help"),
@@ -242,13 +232,13 @@ async def main():
     ]
     await bot.set_my_commands(commands)
 
-    # Verify bot token & connection
+    # Bot verification
     me = await bot.get_me()
-    config.logger.info(f"✅ Bot successfully connected as: @{me.username} (ID: {me.id})")
+    config.logger.info(f"✅ Bot connected: @{me.username}")
 
-    # Drop old pending updates to start fresh
+    # Drop pending updates
     await bot.delete_webhook(drop_pending_updates=True)
-    config.logger.info("🚀 Polling started... Send /start to your bot in Telegram!")
+    config.logger.info("🚀 Polling started...")
 
     try:
         await dp.start_polling(bot)
