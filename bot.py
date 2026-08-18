@@ -17,7 +17,7 @@ import config
 router = Router()
 
 # ==================================================
-# KEYBOARDS & TEXT TEMPLATES (WITH CUSTOM TG-EMOJIS)
+# KEYBOARDS & TEXT TEMPLATES (CUSTOM TG-EMOJIS)
 # ==================================================
 
 START_TEXT = (
@@ -32,31 +32,35 @@ START_TEXT = (
 )
 
 HELP_TEXT = (
-    "🤖 <b>TRION AI GUIDE BOT</b>\n\n"
-    "Use the buttons below to access:\n\n"
-    "🔐 Login Guide\n"
-    "💳 Purchase Guide\n"
-    "🎮 Gameplay Guide\n"
-    "🆘 Support"
+    '<tg-emoji emoji-id="5253733528385912919">🤖</tg-emoji> TRION AI GUIDE BOT <tg-emoji emoji-id="5229011542011299168">👑</tg-emoji>\n\n'
+    '<tg-emoji emoji-id="6052879414339837562">☄️</tg-emoji>Use the buttons below to access: <tg-emoji emoji-id="6052991826518873591">📌</tg-emoji>\n\n'
+    '<tg-emoji emoji-id="5294404854339345861">🔒</tg-emoji> Login Guide <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>\n'
+    '<tg-emoji emoji-id="6134215550781365745">💳</tg-emoji> Purchase Guide <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>\n'
+    '<tg-emoji emoji-id="5019285557348401713">🕹️</tg-emoji> Gameplay Guide <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>\n'
+    '<tg-emoji emoji-id="5220108512893344933">🆘</tg-emoji> Support <tg-emoji emoji-id="6338899694810307622">🗣️</tg-emoji>'
 )
 
 SUPPORT_TEXT = (
-    "🆘 <b>TRION AI SUPPORT</b>\n\n"
-    "Need help?\n\n"
-    "For login, purchase or technical assistance,\n"
-    "contact our support team."
+    '<tg-emoji emoji-id="5251299553239398548">🤖</tg-emoji> TRION AI SUPPORT <tg-emoji emoji-id="5251623273514435268">🌐</tg-emoji>\n\n'
+    '<tg-emoji emoji-id="6053315100117309042">⚠️</tg-emoji> Need help? <tg-emoji emoji-id="6012563681613714763">😭</tg-emoji>\n\n'
+    '<tg-emoji emoji-id="6052991826518873591">📌</tg-emoji>For login, purchase or technical assistance,\n'
+    'contact our support team. <tg-emoji emoji-id="6053142399482339205">🔔</tg-emoji>'
 )
+
+# ==================================================
+# KEYBOARDS WITH STYLE = "success" (GREEN)
+# ==================================================
 
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🔐 How to Login", callback_data="menu_login"),
-                InlineKeyboardButton(text="💳 How to Buy", callback_data="menu_buy"),
+                InlineKeyboardButton(text="🔐 How to Login", callback_data="menu_login", style="success"),
+                InlineKeyboardButton(text="💳 How to Buy", callback_data="menu_buy", style="success"),
             ],
             [
-                InlineKeyboardButton(text="🎮 How to Play", callback_data="menu_play"),
-                InlineKeyboardButton(text="🆘 Support", callback_data="menu_support"),
+                InlineKeyboardButton(text="🎮 How to Play", callback_data="menu_play", style="success"),
+                InlineKeyboardButton(text="🆘 Support", callback_data="menu_support", style="success"),
             ]
         ]
     )
@@ -65,10 +69,10 @@ def get_support_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="👨‍💻 Contact Support", url=config.SUPPORT_URL)
+                InlineKeyboardButton(text="👨‍💻 Contact Support", url=config.SUPPORT_URL, style="success")
             ],
             [
-                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")
+                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu", style="success")
             ]
         ]
     )
@@ -77,7 +81,7 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu")
+                InlineKeyboardButton(text="🔙 Back to Menu", callback_data="back_menu", style="success")
             ]
         ]
     )
